@@ -36,6 +36,8 @@ clustering_scaler = joblib.load(
 def data_exploration_view(request):
     df = pd.read_csv(os.path.join(BASE_DIR, "dummy-data", "vehicles_ml_dataset.csv"))
 
+    clustering_metrics = evaluate_clustering_model()
+
     context = {
         "table": dataset_exploration(df),
         "data_exploration": data_exploration(df),
@@ -46,6 +48,8 @@ def data_exploration_view(request):
         "total_provinces": df["province"].nunique()
         if "province" in df.columns
         else 0,
+        "clustering_cv": clustering_metrics.get("coefficient_of_variation"),
+        "clustering_silhouette": clustering_metrics.get("silhouette"),
     }
     return render(request, "predictor/index.html", context)
 

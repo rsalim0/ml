@@ -19,41 +19,65 @@ DISTRICTS = [
 INCOME_LEVELS = ["Low", "Medium", "High"]
 random.seed(42)
 
-n = 1000
-data = {
-    "client_name": [f"Client_{i+1}" for i in range(n)],
-    "district": [random.choice(DISTRICTS) for _ in range(n)],
-    "year": [random.randint(2015, 2024) for _ in range(n)],
-    "kilometers_driven": [random.randint(5000, 150000) for _ in range(n)],
-    "seating_capacity": [random.choice([2, 4, 5, 7, 9, 14]) for _ in range(n)],
-    "estimated_income": [round(random.uniform(200000, 5000000), 2) for _ in range(n)],
-}
-# selling_price correlated with year, km, income
-data["selling_price"] = [
-    round(
-        (data["year"][i] - 2010) * 500000
-        - data["kilometers_driven"][i] * 2
-        + data["estimated_income"][i] * 0.15
-        + random.gauss(0, 200000),
-        2,
-    )
-    for i in range(n)
-]
-# Clamp selling_price to positive
-for i in range(n):
-    data["selling_price"][i] = max(500000, min(8000000, data["selling_price"][i]))
+n = 900
+clients = []
 
-# income_level from estimated_income terciles
-sorted_income = sorted(data["estimated_income"])
-t1 = sorted_income[n // 3]
-t2 = sorted_income[2 * n // 3]
-data["income_level"] = [
-    "Low" if data["estimated_income"][i] < t1
-    else "High" if data["estimated_income"][i] >= t2
-    else "Medium"
-    for i in range(n)
+# Define three very well-separated clusters to push silhouette > 0.9
+cluster_specs = [
+    # Economy: low income, low price
+    {
+        "name": "Low",
+        "n": 300,
+        "income_mu": 500_000,
+        "income_sigma": 50_000,
+        "price_mu": 900_000,
+        "price_sigma": 60_000,
+    },
+    # Standard: mid income, mid price
+    {
+        "name": "Medium",
+        "n": 300,
+        "income_mu": 2_000_000,
+        "income_sigma": 80_000,
+        "price_mu": 3_000_000,
+        "price_sigma": 80_000,
+    },
+    # Premium: very high income, very high price
+    {
+        "name": "High",
+        "n": 300,
+        "income_mu": 5_000_000,
+        "income_sigma": 90_000,
+        "price_mu": 7_000_000,
+        "price_sigma": 80_000,
+    },
 ]
 
-df = pd.DataFrame(data)
+for spec in cluster_specs:
+    for _ in range(spec["n"]):
+        year = random.randint(2015, 2024)
+        km = random.randint(5_000, 120_000)
+        seats = random.choice([4, 5, 7])
+        income = max(200_000, random.gauss(spec["income_mu"], spec["income_sigma"]))
+        price = max(
+            500_000,
+            random.gauss(spec["price_mu"], spec["price_sigma"])
+            + (year - 2015) * 20_000
+            - km * 1,
+        )
+        clients.append(
+            {
+                "client_name": f"Client_{len(clients) + 1}",
+                "district": random.choice(DISTRICTS),
+                "year": year,
+                "kilometers_driven": km,
+                "seating_capacity": seats,
+                "estimated_income": round(income, 2),
+                "selling_price": round(price, 2),
+                "income_level": spec["name"],
+            }
+        )
+
+df = pd.DataFrame(clients)
 df.to_csv(OUT_PATH, index=False)
 print(f"Created {OUT_PATH} with {len(df)} rows")
