@@ -1,11 +1,17 @@
-import pandas as pd
-import json
 import os
 import joblib
+import pandas as pd
 from django.shortcuts import render
+
 from predictor.data_exploration import dataset_exploration, data_exploration
+from predictor.map_visualization import (
+    create_rwanda_district_map,
+    get_district_summary_table,
+)
 from model_generators.clustering.train_cluster import evaluate_clustering_model
-from model_generators.classification.train_classifier import evaluate_classification_model
+from model_generators.classification.train_classifier import (
+    evaluate_classification_model,
+)
 from model_generators.regression.train_regression import evaluate_regression_model
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,7 +21,9 @@ regression_model = joblib.load(
     os.path.join(BASE_DIR, "model_generators", "regression", "regression_model.pkl")
 )
 classification_model = joblib.load(
-    os.path.join(BASE_DIR, "model_generators", "classification", "classification_model.pkl")
+    os.path.join(
+        BASE_DIR, "model_generators", "classification", "classification_model.pkl"
+    )
 )
 clustering_model = joblib.load(
     os.path.join(BASE_DIR, "model_generators", "clustering", "clustering_model.pkl")
@@ -28,20 +36,16 @@ clustering_scaler = joblib.load(
 def data_exploration_view(request):
     df = pd.read_csv(os.path.join(BASE_DIR, "dummy-data", "vehicles_ml_dataset.csv"))
 
-    # ── Exercise (a): Rwanda district map data ──
-    district_counts = df["district"].value_counts().reset_index()
-    district_counts.columns = ["district", "count"]
-    district_map_data = json.dumps(
-        {
-            "districts": district_counts["district"].tolist(),
-            "counts": district_counts["count"].tolist(),
-        }
-    )
-
     context = {
+        "table": dataset_exploration(df),
         "data_exploration": data_exploration(df),
-        "dataset_exploration": dataset_exploration(df),
-        "district_map_data": district_map_data,
+        "map": create_rwanda_district_map(df),
+        "district_summary": get_district_summary_table(df),
+        "total_clients": len(df),
+        "total_districts": df["district"].nunique(),
+        "total_provinces": df["province"].nunique()
+        if "province" in df.columns
+        else 0,
     }
     return render(request, "predictor/index.html", context)
 
